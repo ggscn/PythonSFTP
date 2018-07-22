@@ -5,6 +5,7 @@ import os
 import socket
 import sys
 import traceback
+import stat
 #import python-gssapi
 
 import paramiko
@@ -77,7 +78,7 @@ class SFTP(object):
         try:
             conn.mkdir(path)
         except:
-            print('')
+            print('Could not create directory')
 
     def upload(self, file_obj=None, source_path=None, destination_path=None):
         
@@ -98,14 +99,33 @@ class SFTP(object):
         conn.open(destination_path, "w").write(file_obj)
 
 
+    def download(self, source_path, destination_path):
 
-    def download(self):
-        pass
+        conn = self.conn
+
+        with conn.open(source_path, "r") as f:
+            data = f.read()
+        with open(destination_path, "w") as f:
+            f.write(data)
+
+    def delete(self, path):
+        conn = self.conn
+
+
 
     def list_dir(self, directory='.'):
         conn = self.conn
         dirlist = conn.listdir(directory)
-        print("Dirlist: %s" % dirlist)
+        return dirlist
+
+    def list_files(self):
+        conn = self.conn
+
+    def isdir(self, path):
+        conn = self.conn
+        st_mode = conn.stat(path).st_mode
+        st_mode_str = stat.filemode(st_mode)
+        return str(st_mode_str)[0] == 'd'
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.conn.close()
