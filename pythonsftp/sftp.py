@@ -110,16 +110,22 @@ class SFTP(object):
 
     def delete(self, path):
         conn = self.conn
+        conn.remove(path)
 
-
-
-    def list_dir(self, directory='.'):
+    def describe(self, path='.'):
         conn = self.conn
-        dirlist = conn.listdir(directory)
+        dirlist = conn.listdir(path)
         return dirlist
 
-    def list_files(self):
+    def recurse(self, path='.', results = []):
         conn = self.conn
+        for item in self.describe(path):           
+            if self.isdir(item):
+                self.recurse(item, results)
+            else:
+                results.append(item)
+        return results
+
 
     def isdir(self, path):
         conn = self.conn
