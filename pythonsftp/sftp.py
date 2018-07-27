@@ -72,17 +72,13 @@ class SFTP(object):
         conn = paramiko.SFTPClient.from_transport(t)
         return conn
 
-    def mkdir(self, path):
-        conn = self.conn
-        
+    def mkdir(self, path):       
         try:
-            conn.mkdir(path)
+            self.conn.mkdir(path)
         except:
             print('Could not create directory')
 
     def upload(self, file_obj=None, source_path=None, destination_path=None):
-        
-        conn = self.conn
 
         if not Path(source_path).is_file():
             raise FileError('File path is not correct')
@@ -96,42 +92,42 @@ class SFTP(object):
                 print(f.name)
         #catch os error and see if destination path exists
    
-        conn.open(destination_path, "w").write(file_obj)
+        self.conn.open(destination_path, "w").write(file_obj)
 
 
     def download(self, source_path, destination_path):
 
-        conn = self.conn
-
-        with conn.open(source_path, "r") as f:
+        with self.conn.open(source_path, "r") as f:
             data = f.read()
         with open(destination_path, "w") as f:
             f.write(data)
 
     def delete(self, path):
-        conn = self.conn
-        conn.remove(path)
+        self.conn.remove(path)
 
     def describe(self, path='.'):
-        conn = self.conn
-        dirlist = conn.listdir(path)
+        dirlist = self.conn.listdir(path)
         return dirlist
 
-    def recurse(self, path='.', results = []):
-        conn = self.conn
-        for item in self.describe(path):           
-            if self.isdir(item):
-                self.recurse(item, results)
-            else:
-                results.append(item)
-        return results
+    def recurse(self, path='.', _results = []):
+        self.conn.chdir(path)
 
+        for item in self.describe():        
+            if self.isdir(item):
+                item = '{}/'.format(item)
+                _results.append(item)
+                self.recurse(item, _results)
+            else:
+                _results.append(item)
+        return _results
 
     def isdir(self, path):
-        conn = self.conn
-        st_mode = conn.stat(path).st_mode
-        st_mode_str = stat.filemode(st_mode)
-        return str(st_mode_str)[0] == 'd'
+        try:
+            st_mode = self.conn.stat(path).st_mode
+            st_mode_str = stat.filemode(st_mode)
+            return str(st_mode_str)[0] == 'd'
+        except:
+            return False
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.conn.close()
