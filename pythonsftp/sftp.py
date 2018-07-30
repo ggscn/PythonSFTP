@@ -6,11 +6,12 @@ import socket
 import sys
 import traceback
 import stat
+import io
 #import python-gssapi
 
 import paramiko
 from paramiko.py3compat import input
-from exceptions import FileError
+#from exceptions import FileError
 
 class SFTP(object):
     def __init__(self, username, hostname, password=None, host_key=None, port=22, verbose=False):
@@ -78,21 +79,32 @@ class SFTP(object):
         except:
             print('Could not create directory')
 
-    def upload(self, file_obj=None, source_path=None, destination_path=None):
+    def upload(self, source_path=None, destination_path=None, file_obj=None):
 
-        if not Path(source_path).is_file():
-            raise FileError('File path is not correct')
+        if source_path is None and file_obj is None:
+            raise Exception('Source file path or file_obj must be supplied')
 
-        if file_obj is None and source_path is None:
-            raise FileError('Must supply either file like object or path to a file to upload')
+        if source_path is not None and not Path(source_path).is_file():
+            raise Exception('Source file does not exist')
         
+        if file_obj is not None:
+            try:
+                file_contents = file_obj.read()
+            except io.UnsupportedOperation:
+                print('File must be opened with "r"')
+
         if source_path is not None:
-            with open(source_path, "r") as f:
-                file_obj = f.read()
-                print(f.name)
+            file_obj = open(source_path, "r")
+            file_contents = file_obj.read()
+
+        if destination_path is None:
+            destination_path = os.path.basename(file_obj.name)
         #catch os error and see if destination path exists
+
+        if source_path is not None:
+            file_obj.close()
    
-        self.conn.open(destination_path, "w").write(file_obj)
+        self.conn.open(destination_path, "w").write(file_contents)
 
 
     def download(self, source_path, destination_path):
@@ -107,6 +119,7 @@ class SFTP(object):
 
     def describe(self, path='.'):
         dirlist = self.conn.listdir(path)
+        print(dirlist)
         return dirlist
 
     def recurse(self, path='.', _results = []):
@@ -120,6 +133,29 @@ class SFTP(object):
             else:
                 _results.append(item)
         return _results
+
+    def sync(self, local_path, source_path, mode='PUSH'):
+
+        if mode == 'PULL':
+            source_files = self._get_source_files(remote_path, 'REMOTE')
+        else:
+            source_files = self._get_source_files(local_path)
+        
+                
+    def _get_source_files(self, path):
+        pass
+
+    def _recurse_local(self):
+        pass
+
+    def _isdir_local(self):
+        pass
+    
+    def _isfile_local(self):
+        pass
+
+    def _mkdir_local(self):
+        pass
 
     def isdir(self, path):
         try:
