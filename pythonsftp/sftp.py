@@ -7,6 +7,7 @@ import sys
 import traceback
 import stat
 import io
+import re
 #import python-gssapi
 
 import paramiko
@@ -21,7 +22,7 @@ class SFTP(object):
         self.host_key = host_key
         self.port = port
 
-        self.UseGSSAPI = False  # enable GSS-API / SSPI authentication
+        self.UseGSSAPI = False 
         self.DoGSSAPIKeyExchange = False
 
         if host_key is not None:
@@ -48,9 +49,11 @@ class SFTP(object):
                 hostkey = host_keys[hostname][hostkeytype]
                 print("Using host key of type %s" % hostkeytype)
         
-        self.conn = self.connect()
+        self.conn = self._connect()
 
-    def connect(self):
+    def _connect(self):
+        """Creates paramiko ssh connection and returns paramiko SFTP client
+        """
         port = self.port
         hostname = self.hostname
         username = self.username
@@ -115,23 +118,29 @@ class SFTP(object):
             f.write(data)
 
     def delete(self, path):
-        self.conn.remove(path)
+        try:
+            self.conn.remove(path)
+        except Exception as e:
+            print(e)
+
 
     def describe(self, path='.'):
-        dirlist = self.conn.listdir(path)
-        print(dirlist)
-        return dirlist
+        if self.isdir(path):
+            dirlist = self.conn.listdir(path)
+            return dirlist
 
-    def recurse(self, path='.', _results = []):
+    def recurse(self, path='.', _results = [], regex='(.*?)'):
         self.conn.chdir(path)
-
-        for item in self.describe():        
-            if self.isdir(item):
-                item = '{}/'.format(item)
-                _results.append(item)
-                self.recurse(item, _results)
-            else:
-                _results.append(item)
+        pattern = re.compile(regex)
+            
+        for item in self.describe():
+            if pattern.search(item) is not None:
+                if self.isdir(item):
+                    item = '{}/'.format(item)
+                    _results.append(item)
+                    self.recurse(item, _results)
+                else:
+                    _results.append(item)
         return _results
 
     def sync(self, local_path, source_path, mode='PUSH'):
